@@ -1,1 +1,114 @@
+Q.1) Print the type of file and inode number where file name accepted through Command Line
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+void print_file_type(mode_t mode) {
+    if (S_ISREG(mode))
+        printf("Regular File");
+    else if (S_ISDIR(mode))
+        printf("Directory");
+    else if (S_ISCHR(mode))
+        printf("Character Device");
+    else if (S_ISBLK(mode))
+        printf("Block Device");
+    else if (S_ISFIFO(mode))
+        printf("FIFO / Pipe");
+    else if (S_ISLNK(mode))
+        printf("Symbolic Link");
+    else if (S_ISSOCK(mode))
+        printf("Socket");
+    else
+        printf("Unknown");
+}
+
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        printf("Usage: %s <filename>\n", argv[0]);
+        return 1;
+    }
+
+    struct stat fileStat;
+    if (stat(argv[1], &fileStat) < 0) {
+        perror("stat failed");
+        return 1;
+    }
+
+    printf("File: %s\n", argv[1]);
+    printf("Inode Number: %ld\n", fileStat.st_ino);
+    printf("File Type: ");
+    print_file_type(fileStat.st_mode);
+    printf("\n");
+
+    return 0;
+}
+
+
+Q.2) Write a C program which creates a child process to run linux/ unix command or any user defined
+program. The parent process set the signal handler for death of child signal and Alarm signal. If
+a child process does not complete its execution in 5 second then parent process kills child process
+
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <signal.h>
+#include <sys/wait.h>
+
+pid_t child_pid = -1;
+
+// Handler for child termination (SIGCHLD)
+void child_handler(int signum) {
+    int status;
+    pid_t pid = waitpid(child_pid, &status, WNOHANG);
+    if (pid > 0) {
+        if (WIFEXITED(status))
+            printf("Child exited normally with status %d\n", WEXITSTATUS(status));
+        else if (WIFSIGNALED(status))
+            printf("Child killed by signal %d\n", WTERMSIG(status));
+        child_pid = -1; // Mark child as finished
+    }
+}
+
+// Handler for alarm signal (SIGALRM)
+void alarm_handler(int signum) {
+    if (child_pid > 0) {
+        printf("Child did not finish in time. Killing child process %d...\n", child_pid);
+        kill(child_pid, SIGKILL);
+    }
+}
+
+int main() {
+    // Set signal handlers
+    signal(SIGCHLD, child_handler);
+    signal(SIGALRM, alarm_handler);
+
+    child_pid = fork();
+
+    if (child_pid < 0) {
+        perror("fork failed");
+        exit(1);
+    }
+
+    if (child_pid == 0) {
+        // ---- Child Process ----
+        printf("Child process started with PID %d\n", getpid());
+        // Replace with any command, e.g., "sleep 10"
+        execlp("sleep", "sleep", "10", NULL);
+        perror("execlp failed");
+        exit(1);
+    } else {
+        // ---- Parent Process ----
+        printf("Parent waiting for child to finish (5 seconds)...\n");
+        alarm(5); // Set 5-second timer
+        while (child_pid > 0) {
+            pause(); // Wait for signals
+        }
+        printf("Parent: Done monitoring child.\n");
+    }
+
+    return 0;
+}
 
