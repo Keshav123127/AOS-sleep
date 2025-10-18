@@ -1,1 +1,104 @@
+Q.1) Read the current directory and display the name of the files, no of files in current directory
+
+#include <stdio.h>
+#include <dirent.h>   // For directory handling functions
+#include <stdlib.h>
+
+int main() {
+    DIR *dir;
+    struct dirent *entry;
+    int count = 0;
+
+    // Open current directory
+    dir = opendir(".");
+    if (dir == NULL) {
+        perror("Unable to open directory");
+        exit(1);
+    }
+
+    printf("Files in current directory:\n");
+    printf("-----------------------------\n");
+
+    // Read entries one by one
+    while ((entry = readdir(dir)) != NULL) {
+        // Skip "." and ".." directories
+        if (entry->d_name[0] != '.') {
+            printf("%s\n", entry->d_name);
+            count++;
+        }
+    }
+
+    printf("-----------------------------\n");
+    printf("Total number of files: %d\n", count);
+
+    closedir(dir);
+    return 0;
+}
+
+Q 2) Write a C program to create an unnamed pipe. The child process will write following three
+messages to pipe and parent process display it.
+Message1 = “Hello World”
+Message2 = “Hello SPPU”
+Message3 = “Linux is Funny” 
+
+
+#include <stdio.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/types.h>
+#include <stdlib.h>
+
+int main() {
+    int fd[2]; // fd[0] - read end, fd[1] - write end
+    pid_t pid;
+    char buffer[100];
+
+    // Create pipe
+    if (pipe(fd) == -1) {
+        perror("Pipe failed");
+        exit(1);
+    }
+
+    // Create child process
+    pid = fork();
+
+    if (pid < 0) {
+        perror("Fork failed");
+        exit(1);
+    }
+
+    if (pid == 0) {
+        // ----- Child Process -----
+        close(fd[0]); // Close read end
+
+        char *msg1 = "Hello World";
+        char *msg2 = "Hello SPPU";
+        char *msg3 = "Linux is Funny";
+
+        write(fd[1], msg1, strlen(msg1) + 1);
+        sleep(1); // optional delay
+        write(fd[1], msg2, strlen(msg2) + 1);
+        sleep(1);
+        write(fd[1], msg3, strlen(msg3) + 1);
+
+        close(fd[1]); // Close write end after writing
+    }
+    else {
+        // ----- Parent Process -----
+        close(fd[1]); // Close write end
+
+        printf("Parent reading messages from pipe:\n");
+        printf("-----------------------------------\n");
+
+        while (read(fd[0], buffer, sizeof(buffer)) > 0) {
+            printf("%s\n", buffer);
+        }
+
+        close(fd[0]); // Close read end
+    }
+
+    return 0;
+}
+
+
 
