@@ -1,1 +1,99 @@
+Q.1) Write a C Program that demonstrates redirection of standard output to a file
+
+#include <stdio.h>
+#include <stdlib.h>
+
+int main() {
+    // Redirect stdout to "output.txt"
+    FILE *fp = freopen("output.txt", "w", stdout);
+    if (fp == NULL) {
+        perror("freopen failed");
+        exit(1);
+    }
+
+    // All printf outputs will now go to "output.txt"
+    printf("Hello World\n");
+    printf("This output is redirected to a file.\n");
+    printf("AOS Practical: Standard Output Redirection.\n");
+
+    // Close the file
+    fclose(fp);
+
+    printf("Redirection complete. Check 'output.txt'.\n"); // Will not appear in console
+
+    return 0;
+}
+
+Q.2) Write a C program to implement the following unix/linux command (use fork, pipe and exec
+system call). Your program should block the signal Ctrl-C and Ctrl-\ signal during the execution.
+i. ls –l | wc –l
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <signal.h>
+
+int main() {
+    int fd[2];
+    pid_t pid1, pid2;
+
+    // Block Ctrl-C and Ctrl-\ signals
+    signal(SIGINT, SIG_IGN);   // Ignore SIGINT
+    signal(SIGQUIT, SIG_IGN);  // Ignore SIGQUIT
+
+    // Create pipe
+    if (pipe(fd) == -1) {
+        perror("pipe failed");
+        exit(1);
+    }
+
+    // Fork first child for "ls -l"
+    pid1 = fork();
+    if (pid1 < 0) {
+        perror("fork failed");
+        exit(1);
+    }
+
+    if (pid1 == 0) {
+        // ---- First Child: ls -l ----
+        close(fd[0]);               // Close unused read end
+        dup2(fd[1], STDOUT_FILENO); // Redirect stdout to pipe write end
+        close(fd[1]);
+
+        execlp("ls", "ls", "-l", NULL);
+        perror("execlp failed");
+        exit(1);
+    }
+
+    // Fork second child for "wc -l"
+    pid2 = fork();
+    if (pid2 < 0) {
+        perror("fork failed");
+        exit(1);
+    }
+
+    if (pid2 == 0) {
+        // ---- Second Child: wc -l ----
+        close(fd[1]);               // Close unused write end
+        dup2(fd[0], STDIN_FILENO);  // Redirect stdin to pipe read end
+        close(fd[0]);
+
+        execlp("wc", "wc", "-l", NULL);
+        perror("execlp failed");
+        exit(1);
+    }
+
+    // ---- Parent Process ----
+    close(fd[0]);
+    close(fd[1]);
+
+    // Wait for both children to finish
+    waitpid(pid1, NULL, 0);
+    waitpid(pid2, NULL, 0);
+
+    printf("Command execution completed.\n");
+
+    return 0;
+}
 
