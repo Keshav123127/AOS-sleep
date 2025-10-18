@@ -1,1 +1,103 @@
+Q.1) Display all the files from current directory which are created in particular month
 
+#include <stdio.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <time.h>
+#include <string.h>
+
+int main() {
+    DIR *dir;
+    struct dirent *entry;
+    struct stat fileStat;
+    char path[1024];
+    int month;
+
+    printf("Enter month number (1-12): ");
+    scanf("%d", &month);
+
+    // Open current directory
+    dir = opendir(".");
+    if (dir == NULL) {
+        perror("Unable to open directory");
+        return 1;
+    }
+
+    printf("\nFiles created (last modified) in month %d:\n", month);
+    printf("-------------------------------------------\n");
+
+    while ((entry = readdir(dir)) != NULL) {
+        // Skip hidden files and directories like '.' and '..'
+        if (entry->d_name[0] == '.')
+            continue;
+
+        // Get file path (current directory + filename)
+        snprintf(path, sizeof(path), "./%s", entry->d_name);
+
+        // Get file status
+        if (stat(path, &fileStat) == 0) {
+            struct tm *timeinfo = localtime(&fileStat.st_mtime);
+            if ((timeinfo->tm_mon + 1) == month) {
+                printf("%s\n", entry->d_name);
+            }
+        }
+    }
+
+    closedir(dir);
+    return 0;
+}
+
+Q.2) Write a C program to create n child processes. When all n child processes terminates, Display
+total cumulative time children spent in user and kernel mode
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#include <sys/resource.h>
+
+int main() {
+    int n, i;
+    pid_t pid;
+
+    printf("Enter number of child processes to create: ");
+    scanf("%d", &n);
+
+    for (i = 0; i < n; i++) {
+        pid = fork();
+
+        if (pid < 0) {
+            perror("Fork failed");
+            exit(1);
+        }
+
+        if (pid == 0) {
+            // ---- Child process ----
+            printf("Child %d (PID=%d) running...\n", i + 1, getpid());
+
+            // Simulate some CPU work
+            for (long j = 0; j < 10000000; j++);
+
+            printf("Child %d (PID=%d) exiting...\n", i + 1, getpid());
+            exit(0);
+        }
+    }
+
+    // ---- Parent process ----
+    struct rusage usage;
+    double total_user = 0.0, total_sys = 0.0;
+
+    // Wait for all children
+    for (i = 0; i < n; i++) {
+        wait3(NULL, 0, &usage);
+        total_user += (double)usage.ru_utime.tv_sec + (double)usage.ru_utime.tv_usec / 1e6;
+        total_sys  += (double)usage.ru_stime.tv_sec + (double)usage.ru_stime.tv_usec / 1e6;
+    }
+
+    printf("\nAll %d child processes have terminated.\n", n);
+    printf("Total user time   = %.6f seconds\n", total_user);
+    printf("Total system time = %.6f seconds\n", total_sys);
+
+    return 0;
+}
