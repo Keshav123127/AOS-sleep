@@ -1,1 +1,117 @@
+Q.1) Take multiple files as Command Line Arguments and print their file type and inode number
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+
+void print_file_type(mode_t mode) {
+    if (S_ISREG(mode))
+        printf("Regular File");
+    else if (S_ISDIR(mode))
+        printf("Directory");
+    else if (S_ISCHR(mode))
+        printf("Character Device");
+    else if (S_ISBLK(mode))
+        printf("Block Device");
+    else if (S_ISFIFO(mode))
+        printf("FIFO / Pipe");
+    else if (S_ISLNK(mode))
+        printf("Symbolic Link");
+    else if (S_ISSOCK(mode))
+        printf("Socket");
+    else
+        printf("Unknown");
+}
+
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        printf("Usage: %s <file1> <file2> ...\n", argv[0]);
+        return 1;
+    }
+
+    struct stat fileStat;
+
+    printf("File Name\tInode Number\tFile Type\n");
+    printf("-------------------------------------------\n");
+
+    for (int i = 1; i < argc; i++) {
+        if (stat(argv[i], &fileStat) < 0) {
+            perror(argv[i]);
+            continue;
+        }
+
+        printf("%s\t%ld\t\t", argv[i], fileStat.st_ino);
+        print_file_type(fileStat.st_mode);
+        printf("\n");
+    }
+
+    return 0;
+}
+
+Q.2) Implement the following unix/linux command (use fork, pipe and exec system call)
+ls –l | wc –l 
+
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/wait.h>
+
+int main() {
+    int fd[2];
+    pid_t pid1, pid2;
+
+    // Create pipe
+    if (pipe(fd) == -1) {
+        perror("pipe failed");
+        exit(1);
+    }
+
+    // Fork first child for "ls -l"
+    pid1 = fork();
+    if (pid1 < 0) {
+        perror("fork failed");
+        exit(1);
+    }
+
+    if (pid1 == 0) {
+        // ---- First Child: ls -l ----
+        close(fd[0]);              // Close unused read end
+        dup2(fd[1], STDOUT_FILENO); // Redirect stdout to pipe write end
+        close(fd[1]);
+
+        execlp("ls", "ls", "-l", NULL);
+        perror("execlp failed");
+        exit(1);
+    }
+
+    // Fork second child for "wc -l"
+    pid2 = fork();
+    if (pid2 < 0) {
+        perror("fork failed");
+        exit(1);
+    }
+
+    if (pid2 == 0) {
+        // ---- Second Child: wc -l ----
+        close(fd[1]);               // Close unused write end
+        dup2(fd[0], STDIN_FILENO);  // Redirect stdin to pipe read end
+        close(fd[0]);
+
+        execlp("wc", "wc", "-l", NULL);
+        perror("execlp failed");
+        exit(1);
+    }
+
+    // ---- Parent Process ----
+    close(fd[0]);
+    close(fd[1]);
+
+    // Wait for both children to finish
+    waitpid(pid1, NULL, 0);
+    waitpid(pid2, NULL, 0);
+
+    printf("Command execution completed.\n");
+
+    return 0;
+}
