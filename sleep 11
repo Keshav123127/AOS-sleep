@@ -1,1 +1,99 @@
+Q.1) Write a C program to get and set the resource limits such as files, memory associated with a
+process
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/resource.h>
+
+int main() {
+    struct rlimit rl;
+
+    // --- Example 1: Max number of open files (RLIMIT_NOFILE) ---
+    if (getrlimit(RLIMIT_NOFILE, &rl) == -1) {
+        perror("getrlimit failed");
+        exit(1);
+    }
+
+    printf("Maximum number of open files:\n");
+    printf("Soft limit = %ld\n", rl.rlim_cur);
+    printf("Hard limit = %ld\n\n", rl.rlim_max);
+
+    // Set new soft limit (example: 512)
+    rl.rlim_cur = 512;
+    if (setrlimit(RLIMIT_NOFILE, &rl) == -1) {
+        perror("setrlimit failed");
+        exit(1);
+    }
+
+    printf("Updated maximum number of open files:\n");
+    if (getrlimit(RLIMIT_NOFILE, &rl) == -1) {
+        perror("getrlimit failed");
+        exit(1);
+    }
+    printf("Soft limit = %ld\n", rl.rlim_cur);
+    printf("Hard limit = %ld\n\n", rl.rlim_max);
+
+    // --- Example 2: Maximum virtual memory (RLIMIT_AS) ---
+    if (getrlimit(RLIMIT_AS, &rl) == -1) {
+        perror("getrlimit failed");
+        exit(1);
+    }
+
+    printf("Maximum virtual memory (bytes):\n");
+    printf("Soft limit = %ld\n", rl.rlim_cur);
+    printf("Hard limit = %ld\n\n", rl.rlim_max);
+
+    // Set new soft limit (example: 1 GB)
+    rl.rlim_cur = 1024 * 1024 * 1024;
+    if (setrlimit(RLIMIT_AS, &rl) == -1) {
+        perror("setrlimit failed");
+        exit(1);
+    }
+
+    printf("Updated maximum virtual memory (bytes):\n");
+    if (getrlimit(RLIMIT_AS, &rl) == -1) {
+        perror("getrlimit failed");
+        exit(1);
+    }
+    printf("Soft limit = %ld\n", rl.rlim_cur);
+    printf("Hard limit = %ld\n", rl.rlim_max);
+
+    return 0;
+}
+
+
+Q.2) Write a C program that redirects standard output to a file output.txt. (use of dup and open system
+call).
+
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
+
+int main() {
+    int fd;
+
+    // Open (or create) output.txt with write permission
+    fd = open("output.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd < 0) {
+        perror("open failed");
+        exit(1);
+    }
+
+    // Duplicate fd to stdout (file descriptor 1)
+    if (dup2(fd, STDOUT_FILENO) < 0) {
+        perror("dup2 failed");
+        close(fd);
+        exit(1);
+    }
+
+    // Close original fd as it's no longer needed
+    close(fd);
+
+    // All printf outputs will now go to output.txt
+    printf("This line is redirected to output.txt\n");
+    printf("AOS Practical: Output redirection using dup and open system calls.\n");
+
+    return 0;
+}
