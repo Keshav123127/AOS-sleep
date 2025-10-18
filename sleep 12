@@ -1,1 +1,103 @@
-# AOS-sleep
+Q.1) Write a C program that print the exit status of a terminated child process
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
+int main() {
+    pid_t pid;
+    int status;
+
+    // Create child process
+    pid = fork();
+
+    if (pid < 0) {
+        perror("fork failed");
+        exit(1);
+    }
+
+    if (pid == 0) {
+        // ---- Child Process ----
+        printf("Child process (PID=%d) is running...\n", getpid());
+        // Exit with a specific status code (e.g., 7)
+        exit(7);
+    } 
+    else {
+        // ---- Parent Process ----
+        wait(&status);  // Wait for child to terminate
+
+        if (WIFEXITED(status)) {
+            printf("Child terminated normally.\n");
+            printf("Child exit status = %d\n", WEXITSTATUS(status));
+        } 
+        else if (WIFSIGNALED(status)) {
+            printf("Child terminated by signal %d\n", WTERMSIG(status));
+        } 
+        else {
+            printf("Child terminated abnormally.\n");
+        }
+    }
+
+    return 0;
+}
+
+
+Q.2) Write a C program which receives file names as command line arguments and display those
+filenames in ascending order according to their sizes. I) (e.g $ a.out a.txt b.txt c.txt, …)
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+#include <string.h>
+
+typedef struct {
+    char name[256];
+    off_t size;
+} FileInfo;
+
+// Comparison function for qsort (ascending by size)
+int compare(const void *a, const void *b) {
+    FileInfo *f1 = (FileInfo *)a;
+    FileInfo *f2 = (FileInfo *)b;
+    if (f1->size < f2->size) return -1;
+    else if (f1->size > f2->size) return 1;
+    else return 0;
+}
+
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        printf("Usage: %s <file1> <file2> ...\n", argv[0]);
+        return 1;
+    }
+
+    int n = argc - 1;
+    FileInfo files[n];
+
+    // Get file sizes
+    for (int i = 0; i < n; i++) {
+        struct stat st;
+        if (stat(argv[i+1], &st) != 0) {
+            perror(argv[i+1]);
+            files[i].size = 0;
+            strncpy(files[i].name, argv[i+1], sizeof(files[i].name));
+        } else {
+            files[i].size = st.st_size;
+            strncpy(files[i].name, argv[i+1], sizeof(files[i].name));
+        }
+    }
+
+    // Sort files by size
+    qsort(files, n, sizeof(FileInfo), compare);
+
+    // Display sorted filenames
+    printf("Files in ascending order by size:\n");
+    for (int i = 0; i < n; i++) {
+        printf("%s\t%ld bytes\n", files[i].name, files[i].size);
+    }
+
+    return 0;
+}
+
+
